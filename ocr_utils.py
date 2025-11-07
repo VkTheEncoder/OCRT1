@@ -116,13 +116,6 @@ async def perform_ocr_on_frames(
     app,                 # kept for compatibility with your caller
     fps: int = DEFAULT_FPS,
 ) -> List[Tuple[int, str]]:
-    """
-    OCR the cropped subtitle band.
-    - Skips OCR on visually unchanged frames (emits empty text for timing continuity).
-    - Cleans text to English + basic punctuation.
-    - Debounces near-identical text (treats punctuation/space flicker as same → emit "").
-    Returns: list of (frame_index, text)
-    """
     results: List[Tuple[int, str]] = []
     total = len(frames)
     start_time = time.time()
@@ -148,13 +141,32 @@ async def perform_ocr_on_frames(
             else:
                 # OCR only when changed
                 o = ocr(binimg)
+
                 texts = []
                 if isinstance(o, tuple) and len(o) >= 2:
                     texts = o[1] or []
                 elif isinstance(o, list):
-                    texts = [t[1] for t in o if isinstance(t, (list, tuple)) and len(t) >= 2]
+                    # handle list of [box, text, score] or mixed types
+                    for t in o:
+                        if isinstance(t, (list, tuple)) and len(t) >= 2:
+                            if isinstance(t[1], str):
+                                texts.append(t[1])
+                            elif isinstance(t[1], (int, float)):
+                                continue
+                            else:
+                                texts.append(str(t[1]))
+                        elif isinstance(t, str):
+                            texts.append(t)
 
-                raw = " ".join(t.strip() for t in texts if t and str(t).strip())
+                # ✅ FIXED: safely join only string-like items
+                clean_parts = []
+                for t in texts:
+                    if isinstance(t, str):
+                        val = t.strip()
+                        if val:
+                            clean_parts.append(val)
+                raw = " ".join(clean_parts)
+
                 eng = " ".join(_english_keep.findall(raw)).strip()
 
                 if eng and _similar(eng, last_text):
@@ -165,14 +177,24 @@ async def perform_ocr_on_frames(
                 results.append((fidx, eng))
                 prev_bin = binimg
         else:
-            # First frame: do OCR
+            # First frame
             o = ocr(binimg)
             texts = []
             if isinstance(o, tuple) and len(o) >= 2:
                 texts = o[1] or []
             elif isinstance(o, list):
-                texts = [t[1] for t in o if isinstance(t, (list, tuple)) and len(t) >= 2]
-            raw = " ".join(t.strip() for t in texts if t and str(t).strip())
+                for t in o:
+                    if isinstance(t, (list, tuple)) and len(t) >= 2 and isinstance(t[1], str):
+                        texts.append(t[1])
+                    elif isinstance(t, str):
+                        texts.append(t)
+            clean_parts = []
+            for t in texts:
+                if isinstance(t, str):
+                    val = t.strip()
+                    if val:
+                        clean_parts.append(val)
+            raw = " ".join(clean_parts)
             eng = " ".join(_english_keep.findall(raw)).strip()
             if eng:
                 last_text = eng
