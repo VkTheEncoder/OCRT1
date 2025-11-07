@@ -4,9 +4,9 @@ from pyrogram import Client, filters
 from ocr_utils import extract_frames, perform_ocr_on_frames
 from srt_builder import build_srt
 
-API_ID = 12345          # your Telegram API ID
-API_HASH = "your_api_hash"
-BOT_TOKEN = "your_bot_token_here"
+API_ID = 25341849          # your Telegram API ID
+API_HASH = "c22013816f700253000e3c24a64db3b6"
+BOT_TOKEN = "7260809129:AAGiRnpJrr7OqMmZbUovi6wxGP5DF-LVKrg"
 
 app = Client("subtitle_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
