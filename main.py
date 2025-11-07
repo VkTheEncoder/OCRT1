@@ -3,6 +3,8 @@ import asyncio
 import time
 import logging
 import traceback
+import tempfile  
+import shutil    
 from datetime import datetime
 from pyrogram import Client, filters
 from ocr_utils import extract_frames, perform_ocr_on_frames
@@ -43,69 +45,88 @@ async def start(_, msg):
 # ========== MAIN HANDLER ==========
 @app.on_message(filters.video | filters.document)
 async def extract_subs(client, msg):
-    try:
-        video = msg.video or msg.document
-        if not video:
-            await msg.reply("⚠️ Please send a valid video file.")
-            return
+    
+    # Create a unique directory for this one job
+    with tempfile.TemporaryDirectory() as temp_dir:
+        video_path = None  # Define here for the 'except' block
+        
+        try:
+            video = msg.video or msg.document
+            if not video:
+                await msg.reply("⚠️ Please send a valid video file.")
+                return
 
-        logger.info(f"Processing started for user {msg.from_user.id} | File: {video.file_name}")
-        temp_msg = await msg.reply("📥 Downloading video...")
-        start_time = time.time()
+            logger.info(f"Processing started for user {msg.from_user.id} | File: {video.file_name} | TempDir: {temp_dir}")
+            temp_msg = await msg.reply("📥 Downloading video...")
+            start_time = time.time()
 
-        # --- DOWNLOAD ---
-        async def download_progress(current, total):
-            await update_progress(temp_msg, "📥 Downloading video...", current, total, start_time)
+            # --- DOWNLOAD ---
+            async def download_progress(current, total):
+                await update_progress(temp_msg, "📥 Downloading video...", current, total, start_time)
 
-        video_path = await app.download_media(video, file_name="video.mp4", progress=download_progress)
-        file_size = os.path.getsize(video_path)
-        logger.info(f"Download complete | File size: {file_size / (1024*1024):.2f} MB")
+            # Use the temp_dir for the video path
+            video_path = await app.download_media(
+                video,
+                file_name=os.path.join(temp_dir, "video.mp4"),
+                progress=download_progress
+            )
+            file_size = os.path.getsize(video_path)
+            logger.info(f"Download complete | File size: {file_size / (1024*1024):.2f} MB")
 
-        # --- FRAME EXTRACTION ---
-        await temp_msg.edit("🧠 Extracting frames from video...")
-        frames = extract_frames(video_path, fps=1)
-        logger.info(f"Extracted {len(frames)} frames.")
+            # --- Define a single FPS for processing ---
+            PROCESSING_FPS = 3 # Or 1, 2, etc.
+            
+            # --- FRAME EXTRACTION ---
+            await temp_msg.edit(f"🧠 Extracting frames at {PROCESSING_FPS} FPS...")
+            # Use the temp_dir for the frames path
+            frames_dir = os.path.join(temp_dir, "frames")
+            frames = extract_frames(video_path, output_folder=frames_dir, fps=PROCESSING_FPS)
+            logger.info(f"Extracted {len(frames)} frames.")
 
-        # --- OCR PROCESS ---
-        await temp_msg.edit(f"📸 {len(frames)} frames ready, starting OCR...")
-        fps = 3  # or whatever fps you used in extract_frames()
-        ocr_results = await perform_ocr_on_frames(frames, temp_msg, app, fps=fps)
-        logger.info(f"OCR completed | Detected {len(ocr_results)} English lines.")
+            # --- OCR PROCESS ---
+            await temp_msg.edit(f"📸 {len(frames)} frames ready, starting OCR...")
+            ocr_results = await perform_ocr_on_frames(frames, temp_msg, app, fps=PROCESSING_FPS)
+            logger.info(f"OCR completed | Detected {len(ocr_results)} English lines.")
 
-        if not ocr_results:
-            await temp_msg.edit("😔 No English subtitles detected.")
-            cleanup(video_path, frames)
-            logger.warning("No subtitles found in video.")
-            return
+            if not ocr_results:
+                await temp_msg.edit("😔 No English subtitles detected.")
+                logger.warning("No subtitles found in video.")
+                # No cleanup needed, 'with' statement handles it
+                return
 
-        # --- SRT BUILD ---
-        await temp_msg.edit("📝 Building `.srt` file...")
-        srt_content = build_srt(ocr_results, fps=fps)
-        with open("output.srt", "w", encoding="utf-8") as f:
-            f.write(srt_content)
-        logger.info("SRT file created successfully.")
+            # --- SRT BUILD ---
+            await temp_msg.edit("📝 Building `.srt` file...")
+            srt_content = build_srt(ocr_results, fps=PROCESSING_FPS)
+            
+            # Use the temp_dir for the srt path
+            srt_path = os.path.join(temp_dir, "output.srt")
+            with open(srt_path, "w", encoding="utf-8") as f:
+                f.write(srt_content)
+            logger.info("SRT file created successfully.")
 
-        # --- UPLOAD ---
-        upload_start = time.time()
-        async def upload_progress(current, total):
-            await update_progress(temp_msg, "📤 Uploading `.srt` file...", current, total, upload_start)
+            # --- UPLOAD ---
+            upload_start = time.time()
+            async def upload_progress(current, total):
+                await update_progress(temp_msg, "📤 Uploading `.srt` file...", current, total, upload_start)
 
-        await app.send_document(
-            msg.chat.id,
-            "output.srt",
-            caption="✅ Here are your extracted English subtitles 🎉",
-            progress=upload_progress
-        )
+            await app.send_document(
+                msg.chat.id,
+                srt_path,  # Send the unique srt file
+                caption="✅ Here are your extracted English subtitles 🎉",
+                progress=upload_progress
+            )
 
-        await temp_msg.delete()
-        cleanup(video_path, frames)
-        logger.info(f"Process completed successfully for user {msg.from_user.id}.")
+            await temp_msg.delete()
+            logger.info(f"Process completed successfully for user {msg.from_user.id}.")
 
-    except Exception as e:
-        error_trace = traceback.format_exc()
-        logger.error(f"❌ Error for user {msg.from_user.id}: {str(e)}\n{error_trace}")
-        await msg.reply("⚠️ An unexpected error occurred. Please check logs for details.")
-        cleanup("video.mp4", [])
+        except Exception as e:
+            error_trace = traceback.format_exc()
+            logger.error(f"❌ Error for user {msg.from_user.id}: {str(e)}\n{error_trace}")
+            await msg.reply("⚠️ An unexpected error occurred. Please check logs for details.")
+            # No cleanup needed, 'with' statement handles it
+        
+        # The 'temp_dir' and all its contents (video, frames, srt)
+        # are automatically and safely deleted here
 
 # ========== CLEANUP ==========
 def cleanup(video_path, frames):
