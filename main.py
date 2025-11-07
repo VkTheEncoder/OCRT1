@@ -116,7 +116,15 @@ def cleanup(video_path, frames):
             for f in frames:
                 if os.path.exists(f):
                     os.remove(f)
-            os.rmdir("frames")
+            # safer folder removal with retry
+            import shutil, time
+            for _ in range(3):
+                try:
+                    shutil.rmtree("frames")
+                    break
+                except Exception:
+                    time.sleep(0.5)
+
         if os.path.exists("output.srt"):
             os.remove("output.srt")
         logger.info("🧹 Cleanup complete.")
