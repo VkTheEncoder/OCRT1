@@ -189,17 +189,31 @@ async def perform_ocr_on_frames(
             prev_bin = binimg
 
         # Progress UI
-        if i % 10 == 0 or i == total:
-            elapsed = time.time() - start_time
-            percent = (i / total) * 100
-            remaining = (elapsed / i) * (total - i) if i > 0 else 0
-            bar = int(percent // 5) * "█" + int((100 - percent) // 5) * "░"
-            await progress_msg.edit_text(
-                f"🧠 Running OCR on frames…\n\n"
-                f"[{bar}] {percent:.1f}%\n"
-                f"Processed: {i}/{total} frames\n"
-                f"⏱️ Elapsed: {elapsed:.1f}s | ⌛ Remaining: {remaining:.1f}s"
-            )
+        total = len(frames)
+        start_time = time.time()
+        last_update_time = 0.0  # <-- Add this: tracks last update time
+    
+        prev_bin = None
+        last_text = ""  # last non-empty text
+    
+        for i, fp in enumerate(frames, start=1):
+            # ... (all the OCR logic) ...
+    
+            # Progress UI
+            now = time.time()
+            # Only update if 2 seconds have passed OR it's the last frame
+            if (now - last_update_time > 2.0) or i == total:
+                elapsed = now - start_time
+                percent = (i / total) * 100
+                remaining = (elapsed / i) * (total - i) if i > 0 else 0
+                bar = int(percent // 5) * "█" + int((100 - percent) // 5) * "░"
+                await progress_msg.edit_text(
+                    f"🧠 Running OCR on frames…\n\n"
+                    f"[{bar}] {percent:.1f}%\n"
+                    f"Processed: {i}/{total} frames\n"
+                    f"⏱️ Elapsed: {elapsed:.1f}s | ⌛ Remaining: {remaining:.1f}s"
+                )
+                last_update_time = now  # <-- Add this: update the timer
 
     results.sort(key=lambda x: x[0])
     return results
