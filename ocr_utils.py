@@ -144,18 +144,15 @@ async def perform_ocr_on_frames(
 
                 clean_parts = []
                 if isinstance(o, tuple) and len(o) >= 2:
-                    text_score_list = o[1] or []  # This is [('text', score), ...]
-                    # Iterate through the list and extract the text (t[0])
-                    for t_s_pair in text_score_list:
-                        if isinstance(t_s_pair, (list, tuple)) and len(t_s_pair) >= 1:
-                            if isinstance(t_s_pair[0], str):
-                                val = t_s_pair[0].strip()
+                    text_score_list = o[1] or []
+                    
+                    # This safe loop checks the type of 'item' before accessing
+                    for item in text_score_list:
+                        if isinstance(item, (list, tuple)) and len(item) >= 1:
+                            if isinstance(item[0], str):
+                                val = item[0].strip()
                                 if val:
                                     clean_parts.append(val)
-                
-                # This handles the default RapidOCR() return format.
-                # The old 'elif isinstance(o, list)' is likely dead code
-                # for a different version or a different part of the library.
                 
                 raw = " ".join(clean_parts)
 
