@@ -6,7 +6,7 @@ from rapidocr_onnxruntime import RapidOCR
 
 ocr = RapidOCR()
 
-def extract_frames(video_path, output_folder="frames", fps=1):
+def extract_frames(video_path, output_folder="frames", fps=3):
     os.makedirs(output_folder, exist_ok=True)
     (
         ffmpeg
