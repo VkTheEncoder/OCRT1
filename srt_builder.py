@@ -1,7 +1,7 @@
 import srt
 from datetime import timedelta
 
-def build_srt(ocr_results, fps=1):
+def build_srt(ocr_results, fps=3):
     subs = []
     for idx, (frame_idx, text) in enumerate(ocr_results):
         start = timedelta(seconds=frame_idx / fps)
