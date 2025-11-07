@@ -12,7 +12,7 @@ from progress_utils import update_progress
 # ========== CONFIG ==========
 API_ID = 25341849          # your Telegram API ID
 API_HASH = "c22013816f700253000e3c24a64db3b6"
-BOT_TOKEN = "7260809129:AAGiRnpJrr7OqMmZbUovi6wxGP5DF-LVKrg"
+BOT_TOKEN = "7260809129:AAGmpo4xGrXVk_7emrW9hCQK3vL9dXhzq3A"
 LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)
 LOG_FILE = os.path.join(LOG_DIR, "bot.log")
