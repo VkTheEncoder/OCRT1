@@ -142,29 +142,21 @@ async def perform_ocr_on_frames(
                 # OCR only when changed
                 o = ocr(binimg)
 
-                texts = []
-                if isinstance(o, tuple) and len(o) >= 2:
-                    texts = o[1] or []
-                elif isinstance(o, list):
-                    # handle list of [box, text, score] or mixed types
-                    for t in o:
-                        if isinstance(t, (list, tuple)) and len(t) >= 2:
-                            if isinstance(t[1], str):
-                                texts.append(t[1])
-                            elif isinstance(t[1], (int, float)):
-                                continue
-                            else:
-                                texts.append(str(t[1]))
-                        elif isinstance(t, str):
-                            texts.append(t)
-
-                # ✅ FIXED: safely join only string-like items
                 clean_parts = []
-                for t in texts:
-                    if isinstance(t, str):
-                        val = t.strip()
-                        if val:
-                            clean_parts.append(val)
+                if isinstance(o, tuple) and len(o) >= 2:
+                    text_score_list = o[1] or []  # This is [('text', score), ...]
+                    # Iterate through the list and extract the text (t[0])
+                    for t_s_pair in text_score_list:
+                        if isinstance(t_s_pair, (list, tuple)) and len(t_s_pair) >= 1:
+                            if isinstance(t_s_pair[0], str):
+                                val = t_s_pair[0].strip()
+                                if val:
+                                    clean_parts.append(val)
+                
+                # This handles the default RapidOCR() return format.
+                # The old 'elif isinstance(o, list)' is likely dead code
+                # for a different version or a different part of the library.
+                
                 raw = " ".join(clean_parts)
 
                 eng = " ".join(_english_keep.findall(raw)).strip()
@@ -179,21 +171,16 @@ async def perform_ocr_on_frames(
         else:
             # First frame
             o = ocr(binimg)
-            texts = []
-            if isinstance(o, tuple) and len(o) >= 2:
-                texts = o[1] or []
-            elif isinstance(o, list):
-                for t in o:
-                    if isinstance(t, (list, tuple)) and len(t) >= 2 and isinstance(t[1], str):
-                        texts.append(t[1])
-                    elif isinstance(t, str):
-                        texts.append(t)
+            
             clean_parts = []
-            for t in texts:
-                if isinstance(t, str):
-                    val = t.strip()
-                    if val:
-                        clean_parts.append(val)
+            if isinstance(o, tuple) and len(o) >= 2:
+                text_score_list = o[1] or []  # This is [('text', score), ...]
+                for text, score in text_score_list:
+                    if isinstance(text, str):
+                        val = text.strip()
+                        if val:
+                            clean_parts.append(val)
+            
             raw = " ".join(clean_parts)
             eng = " ".join(_english_keep.findall(raw)).strip()
             if eng:
