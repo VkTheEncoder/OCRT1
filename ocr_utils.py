@@ -5,6 +5,7 @@ import re
 import time
 import ffmpeg
 import cv2
+import asyncio
 import numpy as np
 from typing import List, Tuple, Optional
 from rapidocr_onnxruntime import RapidOCR
@@ -140,7 +141,7 @@ async def perform_ocr_on_frames(
                 results.append((fidx, ""))  # unchanged visually
             else:
                 # OCR only when changed
-                o = ocr(binimg)
+                o = await asyncio.to_thread(ocr, binimg)
 
                 clean_parts = []
                 if isinstance(o, tuple) and len(o) >= 2:
@@ -167,7 +168,7 @@ async def perform_ocr_on_frames(
                 prev_bin = binimg
         else:
             # First frame
-            o = ocr(binimg)
+            o = await asyncio.to_thread(ocr, binimg)
             
             clean_parts = []
             if isinstance(o, tuple) and len(o) >= 2:
