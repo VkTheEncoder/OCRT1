@@ -16,7 +16,7 @@ def extract_frames(video_path, output_folder="frames", fps=3):
     )
     return sorted([os.path.join(output_folder, f) for f in os.listdir(output_folder) if f.endswith(".png")])
 
-async def perform_ocr_on_frames(frames, progress_msg, app, fps=1):
+async def perform_ocr_on_frames(frames, progress_msg, app, fps=3):
     ocr_results = []
     total = len(frames)
     start_time = time.time()
