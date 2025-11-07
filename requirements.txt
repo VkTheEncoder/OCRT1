@@ -4,3 +4,4 @@ ffmpeg-python
 rapidocr-onnxruntime
 pillow
 srt
+tqdm
