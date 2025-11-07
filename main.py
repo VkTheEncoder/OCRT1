@@ -68,7 +68,8 @@ async def extract_subs(client, msg):
 
         # --- OCR PROCESS ---
         await temp_msg.edit(f"📸 {len(frames)} frames ready, starting OCR...")
-        ocr_results = await perform_ocr_on_frames(frames, temp_msg, app)
+        fps = 3  # or whatever fps you used in extract_frames()
+        ocr_results = await perform_ocr_on_frames(frames, temp_msg, app, fps=fps)
         logger.info(f"OCR completed | Detected {len(ocr_results)} English lines.")
 
         if not ocr_results:
@@ -79,7 +80,7 @@ async def extract_subs(client, msg):
 
         # --- SRT BUILD ---
         await temp_msg.edit("📝 Building `.srt` file...")
-        srt_content = build_srt(ocr_results)
+        srt_content = build_srt(ocr_results, fps=fps)
         with open("output.srt", "w", encoding="utf-8") as f:
             f.write(srt_content)
         logger.info("SRT file created successfully.")
