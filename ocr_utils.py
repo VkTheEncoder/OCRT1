@@ -174,12 +174,15 @@ async def perform_ocr_on_frames(
             
             clean_parts = []
             if isinstance(o, tuple) and len(o) >= 2:
-                text_score_list = o[1] or []  # This is [('text', score), ...]
-                for text, score in text_score_list:
-                    if isinstance(text, str):
-                        val = text.strip()
-                        if val:
-                            clean_parts.append(val)
+                text_score_list = o[1] or []
+                
+                # This safe loop checks the type of 'item' before accessing
+                for item in text_score_list:
+                    if isinstance(item, (list, tuple)) and len(item) >= 1:
+                        if isinstance(item[0], str):
+                            val = item[0].strip()
+                            if val:
+                                clean_parts.append(val)
             
             raw = " ".join(clean_parts)
             eng = " ".join(_english_keep.findall(raw)).strip()
