@@ -96,7 +96,13 @@ async def extract_subs(client, msg):
 
             # --- SRT BUILD ---
             await temp_msg.edit("📝 Building `.srt` file...")
-            srt_content = build_srt(ocr_results, fps=PROCESSING_FPS)
+            
+            # Run the slow, synchronous function in a separate thread
+            srt_content = await asyncio.to_thread(
+                build_srt,
+                ocr_results,
+                fps=PROCESSING_FPS
+            )
             
             # Use the temp_dir for the srt path
             srt_path = os.path.join(temp_dir, "output.srt")
